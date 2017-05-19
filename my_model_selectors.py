@@ -78,7 +78,31 @@ class SelectorBIC(ModelSelector):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
         # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+
+        best_score = float('+inf') 
+        best_model = None
+        try:
+            for n in range(self.min_n_components, self.max_n_components+1):
+                model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
+                                        random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
+                LogL = model.score(self.X, self.lengths)
+                # N datapoints = observations in all frames for the word
+                N = len(self.X)
+                # no of params = Initial state occupation probabilities + Transition probabilities + Emission probabilities
+                # initial prob = n - 1
+                # transmat prob = n * (n-1)
+                # emission prob = no of means + no of covars for diag = n * d + n * d
+                # d = features in each observation
+                params = (n * n) + (2 * n * len(self.X[0])) - 1
+                BIC_score = ((-2) * LogL) + (params * math.log(N))
+                
+                if BIC_score < best_score:
+                    best_score = BIC_score
+                    best_model = model
+        except:
+            return best_model
+        
+        return best_model
 
 
 class SelectorDIC(ModelSelector):
@@ -128,7 +152,7 @@ class SelectorCV(ModelSelector):
                     except:
                         pass
                 mean_score = np.mean(logs_array)
-                # update best score and train model for all word sequences
+                # update best score and train model with all word sequences
                 if mean_score > best_score:
                     best_score = mean_score
                     best_model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
