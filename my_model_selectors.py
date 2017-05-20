@@ -117,9 +117,41 @@ class SelectorDIC(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+#
+#        # TODO implement model selection based on DIC scores
+#        
+#        # compare each word with all other words for each number of components
+#        # n order to get an optimal model for any word, we need to run the model on all other words so that we can calculate the formula
+#        # DIC = log(P(original word)) - average(log(P(otherwords)))
+#
+        # initialise
+        max_score = float("-inf")
+        max_model = None
 
+        for n in range(self.min_n_components, self.max_n_components+1):
+            try:
+                sum_score = 0.0
+                wc = 0.0
+                # training model for this_word                
+                model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
+                                    random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
+                # score the other words using this model and sum LogL scores
+                for word in self.hwords:
+                    if word != self.this_word:
+                        X, lengths = self.hwords[word]
+                        sum_score += model.score(X, lengths)
+                        wc +=1
+
+                DIC_score = model.score(self.X, self.lengths) - (sum_score/wc)
+                
+                if DIC_score > max_score:
+                    max_score = DIC_score
+                    max_model = model
+            except:
+                pass
+
+        return max_model        
+        
 
 class SelectorCV(ModelSelector):
     ''' select best model based on average log Likelihood of cross-validation folds
