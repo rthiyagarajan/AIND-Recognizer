@@ -86,8 +86,9 @@ class SelectorBIC(ModelSelector):
                 model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
                                         random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
                 LogL = model.score(self.X, self.lengths)
-                # N datapoints = observations in all frames for the word
+                # N datapoints => observations in all frames of this_word
                 N = len(self.X)
+                
                 # no of params = Initial state occupation probabilities + Transition probabilities + Emission probabilities
                 # initial prob = n - 1
                 # transmat prob = n * (n-1)
@@ -96,6 +97,7 @@ class SelectorBIC(ModelSelector):
                 params = (n * n) + (2 * n * len(self.X[0])) - 1
                 BIC_score = ((-2) * LogL) + (params * math.log(N))
                 
+                # smallest score is best
                 if BIC_score < best_score:
                     best_score = BIC_score
                     best_model = model
@@ -117,13 +119,10 @@ class SelectorDIC(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-#
 #        # TODO implement model selection based on DIC scores
-#        
-#        # compare each word with all other words for each number of components
-#        # n order to get an optimal model for any word, we need to run the model on all other words so that we can calculate the formula
+
 #        # DIC = log(P(original word)) - average(log(P(otherwords)))
-#
+
         # initialise
         max_score = float("-inf")
         max_model = None
