@@ -19,7 +19,6 @@ class ModelSelector(object):
                  random_state=14, verbose=False):
         self.words = all_word_sequences
         self.hwords = all_word_Xlengths
-        # @RT this finds the sequences and XLength for this_word - training.get_all_sequences()[this_word]
         self.sequences = all_word_sequences[this_word]
         self.X, self.lengths = all_word_Xlengths[this_word]
         self.this_word = this_word
@@ -77,7 +76,7 @@ class SelectorBIC(ModelSelector):
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection based on BIC scores
+        # Implement model selection based on BIC scores
 
         best_score = float('+inf') 
         best_model = None
@@ -89,15 +88,16 @@ class SelectorBIC(ModelSelector):
                 # N datapoints => observations in all frames of this_word
                 N = len(self.X)
                 
-                # no of params = Initial state occupation probabilities + Transition probabilities + Emission probabilities
-                # initial prob = n - 1
-                # transmat prob = n * (n-1)
-                # emission prob = no of means + no of covars for diag = n * d + n * d
-                # d = features in each observation
+                # Formula for parameters based on comments in Udacity Forums
+                    # no of params = Initial state occupation probabilities + Transition probabilities + Emission probabilities
+                    # initial prob = n - 1
+                    # transmat prob = n * (n-1)
+                    # emission prob = no of means + no of covars for diag = n * d + n * d
+                    # where d = features in each observation
                 params = (n * n) + (2 * n * len(self.X[0])) - 1
                 BIC_score = ((-2) * LogL) + (params * math.log(N))
                 
-                # smallest score is best
+                # Smallest score is best
                 if BIC_score < best_score:
                     best_score = BIC_score
                     best_model = model
@@ -119,26 +119,27 @@ class SelectorDIC(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-#        # TODO implement model selection based on DIC scores
+        # Implement model selection based on DIC scores
+        # DIC = log(P(original word)) - average(log(P(otherwords)))
 
-#        # DIC = log(P(original word)) - average(log(P(otherwords)))
-
-        # initialise
+        # Initialise
         max_score = float("-inf")
         max_model = None
 
         for n in range(self.min_n_components, self.max_n_components+1):
             try:
+                # Initialise
                 sum_score = 0.0
                 wc = 0.0
                 # training model for this_word                
                 model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
                                     random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
-                # score the other words using this model and sum LogL scores
+                # Score the other words using this model and sum LogL scores
                 for word in self.hwords:
                     if word != self.this_word:
                         X, lengths = self.hwords[word]
                         sum_score += model.score(X, lengths)
+                        # Other word count for averaging
                         wc +=1
 
                 DIC_score = model.score(self.X, self.lengths) - (sum_score/wc)
@@ -160,36 +161,38 @@ class SelectorCV(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         
-        # initialise
+        # Implement model selection based on CV      
+        # Initialise
         best_score = float("-inf") 
         best_model = None
         logs_array = []
-        # number of folds cannot be less than number of sequences, default is 3
+
         try:
+            # Number of folds cannot be less than number of sequences, default is 3
             split_method = KFold(min(3,len(self.sequences)))
             for n in range(self.min_n_components, self.max_n_components+1):
-                # split CV folds 
+                # Split training data into CV folds 
                 for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
-                    # break loop if issue with GaussianHMM() using this n 
+                    # Exit loop if exception raised by GaussianHMM() using this n 
                     try:
                         X_train, lengths_train = combine_sequences(cv_train_idx, self.sequences)
                         model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
                                         random_state=self.random_state, verbose=False).fit(X_train, lengths_train)
-                        # get new X and lengths for combined test folds
+                        # Get new X and lengths for combined test folds
                         X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
-                        # calculated log likelihood based on test data
+                        # Calculate log likelihood based on test data
                         LogL = model.score(X_test, lengths_test)
                         logs_array.append(LogL)                
                     except:
                         pass
                 mean_score = np.mean(logs_array)
-                # update best score and train model with all word sequences
+                # Update best score and train model with all word sequences
                 if mean_score > best_score:
                     best_score = mean_score
                     best_model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
                                         random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
         except:
-            return best_model
+            pass
         
         return best_model
 
